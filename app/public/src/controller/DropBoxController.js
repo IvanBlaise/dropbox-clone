@@ -2,15 +2,24 @@ class DropBoxController {
 
     constructor(){
 
+        this.onselectionchange = new Event('selectionchange');
+
         this.btnSendFileEl = document.querySelector('#btn-send-file');
         this.inputFileEl = document.querySelector('#files');
         this.snackModalEl = document.querySelector('#react-snackbar-root');
-        this.progressBarEl = this.snackModalEl.querySelector('.mc-progress-bar-fg')
-        this.nameFileEl = this.snackModalEl.querySelector('.filename')
-        this.timeleftEl = this.snackModalEl.querySelector('.timeleft')
+        this.progressBarEl = this.snackModalEl.querySelector('.mc-progress-bar-fg');
+        this.nameFileEl = this.snackModalEl.querySelector('.filename');
+        this.timeleftEl = this.snackModalEl.querySelector('.timeleft');
+        this.listFilesEl = document.querySelector('#list-of-files-and-directories');
+        this.btnNewFolder = document.querySelector('#btn-new-folder');
+        this.btnRename = document.querySelector('#btn-rename');
+        this.btnDelete = document.querySelector('#btn-delete');
+
+
         this.conectFirebase();
 
         this.initEvents();
+        this.readFiles();
 
         
     }
@@ -29,8 +38,61 @@ class DropBoxController {
           // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
     }
+    getSelection(){
+
+        return this.listFilesEl.querySelectorAll('.selected');
+
+
+    }
 
     initEvents(){
+
+        this.btnRename.addEventListener('click', e=>{
+
+            let li = this.getSelection()[0];
+
+            let file = JSON.parse(li.dataset.file);
+
+            let name = prompt('Renomear o arquivo:', file.name);
+
+            if (name){
+
+                file.name = name;
+
+                this.getFirebaseRef().child(li.dataset.key).set(file);
+            }
+
+
+        });
+
+        this.listFilesEl.addEventListener('selectionchange', e=>{
+
+            switch(this.getSelection().length){
+
+                case 0:
+                    this.btnDelete.style.display = 'none';
+                    this.btnRename.style.display = 'none';
+                break;    
+
+                case 1:
+
+                    this.btnDelete.style.display = 'block';
+                    this.btnRename.style.display = 'block';
+                    
+                break; 
+
+                default:
+
+                    this.btnDelete.style.display = 'block';
+                    this.btnRename.style.display = 'none';
+
+                    
+                
+
+
+            }
+
+        });
 
         this.btnSendFileEl.addEventListener('click', event=>{
 
@@ -188,8 +250,9 @@ class DropBoxController {
                                 <path d="M77.955 53h50.04A3.002 3.002 0 0 1 131 56.007v58.988a4.008 4.008 0 0 1-4.003 4.005H39.003A4.002 4.002 0 0 1 35 114.995V45.99c0-2.206 1.79-3.99 3.997-3.99h26.002c1.666 0 3.667 1.166 4.49 2.605l3.341 5.848s1.281 2.544 5.12 2.544l.005.003z" fill="#71B9F4"></path>
                                 <path d="M77.955 52h50.04A3.002 3.002 0 0 1 131 55.007v58.988a4.008 4.008 0 0 1-4.003 4.005H39.003A4.002 4.002 0 0 1 35 113.995V44.99c0-2.206 1.79-3.99 3.997-3.99h26.002c1.666 0 3.667 1.166 4.49 2.605l3.341 5.848s1.281 2.544 5.12 2.544l.005.003z" fill="#92CEFF"></path>
                             </g>
-                        </svg>`;
-            break;
+                        </svg>
+                        `;
+                break;
 
             case 'audio/mp3':
             case 'audio/ogg':
@@ -211,7 +274,7 @@ class DropBoxController {
                             </g>
                         </svg>
                         `;
-            break;
+                break;
 
             case 'video/mp4':
             case 'video/quicktime':
@@ -232,7 +295,7 @@ class DropBoxController {
                                 <path d="M69 67.991c0-1.1.808-1.587 1.794-1.094l24.412 12.206c.99.495.986 1.3 0 1.794L70.794 93.103c-.99.495-1.794-.003-1.794-1.094V67.99z" fill="#637282"></path>
                             </g>
                         </svg>`;
-            break;
+                break;
 
             case 'image/jpeg':
             case 'image/jpg':    
@@ -276,7 +339,7 @@ class DropBoxController {
                                         c-2.309,0.033-4.344-1.984-4.313-4.276c0.03-2.263,2.016-4.213,4.281-4.206C72.207,72.338,74.179,74.298,74.188,76.557z"></path>
                             </g>
                         </svg>`;
-            break;  
+                break;  
             case 'application/pdf':
                 return `<svg version="1.1" id="Camada_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="160px" height="160px" viewBox="0 0 160 160" enable-background="new 0 0 160 160" xml:space="preserve">
                             <filter height="102%" width="101.4%" id="mc-content-unknown-large-a" filterUnits="objectBoundingBox" y="-.5%" x="-.7%">
@@ -310,7 +373,7 @@ class DropBoxController {
                                     C84.057,86.456,82.837,86.174,81.955,86.183z M96.229,94.8c-1.14-0.082-1.692-1.111-1.785-2.033
                                     c-0.131-1.296,1.072-0.867,1.753-0.876c0.796-0.011,1.668,0.118,1.588,1.293C97.394,93.857,97.226,94.871,96.229,94.8z"></path>
                         </svg>`;
-            break;          
+                break;          
             default:
                 return `
                     <svg width="160" height="160" viewBox="0 0 160 160" class="mc-icon-template-content tile__preview tile__preview--icon">
@@ -336,19 +399,99 @@ class DropBoxController {
         
     }// Final getFileIconView()
 
-    getFileView(file){
+    getFileView(file, key){
 
-        return `<li>
-                    ${thid.getFileIconView(file)}
-                    <div class="name text-center">${file.name}</div>
-                </li>`;
+        let li = document.createElement('li');
+        
+        li.dataset.key = key;
+        li.dataset.file = JSON.stringify(file);
+
+        li.innerHTML = `${this.getFileIconView(file)}
+                        <div class="name text-center">${file.name}</div>
+                        `;
+
+        this.initEventsLi(li);
+        return li;
 
 
     }// Final getFileView()
 
+    initEventsLi(li){
+
+        li.addEventListener('click', e=>{
+
+            
+
+            if(e.shiftKey){
+
+                let firstLi = this.listFilesEl.querySelector('.selected');
+                
+                if(firstLi){
+
+                    let indexStart;
+                    let indexEnd;
+                    let lis = li.parentElement.childNodes;
+
+                    lis.forEach((el, index)=>{
+
+                        if(firstLi === el) indexStart = index;
+                        if(li === el) indexEnd = index;
+                    });
+
+                    let index=[indexStart, indexEnd].sort();
+
+                    lis.forEach((el, i)=>{
+
+                        if (i >= index[0] && i <= index[1]){
+
+                            el.classList.add('selected');
+                        }
+                    });
+
+                    this.listFilesEl.dispatchEvent(this.onselectionchange);
+
+                    return true;
+
+                    
+                    
+                }
+            }
+
+            if(!e.ctrlKey){
+
+                this.listFilesEl.querySelectorAll('li.selected').forEach(el=>{
+
+                    el.classList.remove('selected');
+                });                
+
+            }
+            li.classList.toggle('selected');
+
+            this.listFilesEl.dispatchEvent(this.onselectionchange);
+        });
+    }
+
     readFiles(){
 
-        this.getFirebaseRef().on('value')  
+        this.getFirebaseRef().on('value', snapshot=>{
+
+            this.listFilesEl.innerHTML = '';
+
+            snapshot.forEach(snapshotItem=>{
+
+                let key = snapshotItem.key;
+                let data = snapshotItem.val();
+
+                this.listFilesEl.appendChild(this.getFileView(data, key));
+
+
+
+            });
+
+            
+
+            
+        });  
     }
 
 
